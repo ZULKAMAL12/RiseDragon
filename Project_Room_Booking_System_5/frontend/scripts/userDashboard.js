@@ -3,17 +3,20 @@ document.addEventListener("DOMContentLoaded", async function () {
     const historyTable = document.getElementById("bookingHistory");
 
     const token = localStorage.getItem("token");
-    const userId = localStorage.getItem("userId");
+    const role = localStorage.getItem("role");
 
-    if (!token || !userId) {
-        alert("Unauthorized access! Please log in.");
-        window.location.href = "../../index.html";
+    console.log("Stored Role:", role); // Debugging Log
+    console.log("Stored Token:", token ? "Exists" : "Not Found"); // Debugging Log
+
+    if (!token || !role || role.trim().toLowerCase() !== "user") {
+        alert("Unauthorized access! Redirecting to login.");
+        logout();
         return;
     }
 
     async function fetchBookings() {
         try {
-            const response = await fetch(`http://localhost:3000/api/booking/userBookings?userId=${userId}`, {
+            const response = await fetch("http://localhost:3000/api/booking/userBookings", {
                 method: "GET",
                 headers: { "Authorization": `Bearer ${token}` }
             });
@@ -21,11 +24,12 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (!response.ok) throw new Error("Failed to fetch bookings");
 
             const { upcoming, history } = await response.json();
+            console.log("Fetched Bookings:", { upcoming, history }); // Debugging Log
 
             renderBookings(upcoming, "upcomingBookings", true);
             renderBookings(history, "bookingHistory", false);
         } catch (error) {
-            console.error("Error fetching bookings:", error);
+            console.error("❌ Error fetching bookings:", error);
             alert("Failed to load bookings. Please try again.");
         }
     }
@@ -33,6 +37,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     function renderBookings(bookings, tableId, isUpcoming) {
         const tableBody = document.getElementById(tableId);
         tableBody.innerHTML = "";
+
+        if (bookings.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="6" class="text-center">No bookings found.</td></tr>`;
+            return;
+        }
 
         bookings.forEach((booking, index) => {
             const row = document.createElement("tr");
@@ -52,7 +61,13 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     function getStatusColor(status) {
-        return status === "Pending" ? "warning" : status === "Confirmed" ? "success" : "secondary";
+        switch (status.toLowerCase()) {
+            case "pending": return "warning";
+            case "confirmed": return "success";
+            case "completed": return "secondary";
+            case "rejected": return "danger";
+            default: return "dark";
+        }
     }
 
     async function cancelBooking(bookingId) {
@@ -65,21 +80,21 @@ document.addEventListener("DOMContentLoaded", async function () {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ bookingId })
+                body: JSON.stringify({ bookingId }) // Removed userId (Backend should verify from token)
             });
 
             const result = await response.json();
             alert(result.message);
             fetchBookings(); // Refresh bookings after cancellation
         } catch (error) {
-            console.error("Error cancelling booking:", error);
+            console.error("❌ Error cancelling booking:", error);
             alert("Failed to cancel booking. Please try again.");
         }
     }
 
     async function updateBooking(bookingId) {
-        const newDate = prompt("Enter new date (DD/MM/YYYY):");
-        const newTime = prompt("Enter new time slot (e.g., 10:00 AM):");
+        const newDate = prompt("Enter new date (YYYY-MM-DD):");
+        const newTime = prompt("Enter new time slot (e.g., 10:00 AM - 12:00 PM):");
 
         if (!newDate || !newTime) {
             alert("Update canceled.");
@@ -93,16 +108,22 @@ document.addEventListener("DOMContentLoaded", async function () {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ bookingId, userId, newDate, newTime })
+                body: JSON.stringify({ bookingId, newDate, newTime }) // Removed userId (Backend should verify from token)
             });
 
             const result = await response.json();
             alert(result.message);
             fetchBookings(); // Refresh bookings after update request
         } catch (error) {
-            console.error("Error updating booking:", error);
+            console.error("❌ Error updating booking:", error);
             alert("Failed to update booking. Please try again.");
         }
+    }
+
+    function logout() {
+        console.warn("Logging out user..."); // Debugging Log
+        localStorage.clear();
+        window.location.href = "../../index.html";
     }
 
     fetchBookings();
