@@ -15,14 +15,16 @@ document.addEventListener("DOMContentLoaded", function () {
             });
 
             const result = await response.json();
-            console.log("🔍 Login API Response:", result); // Debugging
+            console.log("🔍 Login API Response:", result); 
 
-            if (response.ok) {
+            if (response.ok && result.token && result.userId) {  
                 localStorage.setItem("token", result.token);
+                localStorage.setItem("userId", result.userId);  
                 localStorage.setItem("role", result.role);
-                console.log("✅ Token & Role Stored in LocalStorage");
+                
+                console.log(" Token and Role Stored in LocalStorage:", result);
 
-                // Redirect based on role
+                
                 if (result.role === "admin") {
                     alert("Logging in as Admin...");
                     window.location.href = "../pages/admin/dashboard.html";
@@ -31,10 +33,10 @@ document.addEventListener("DOMContentLoaded", function () {
                     window.location.href = "../pages/users/dashboard.html";
                 }
             } else {
-                alert(result.message);
+                alert(result.message || "Invalid login credentials.");
             }
         } catch (error) {
-            console.error("❌ Error:", error);
+            console.error(" Error:", error);
             alert("Server error. Please try again.");
         }
     });

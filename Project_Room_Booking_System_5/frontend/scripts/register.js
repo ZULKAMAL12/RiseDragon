@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const confirmPassword = document.getElementById("confirm_password").value;
         const isAdmin = document.getElementById("is_admin").checked;
 
-        // Frontend Validation
+        
         if (password !== confirmPassword) {
             alert("Passwords do not match!");
             return;

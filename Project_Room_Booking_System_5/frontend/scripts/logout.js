@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (logoutBtn) {
         logoutBtn.addEventListener("click", function (event) {
             event.preventDefault();
-            localStorage.removeItem("token"); // Remove JWT Token
+            localStorage.removeItem("token"); // Remove Token
             localStorage.removeItem("role"); // Remove User Role
             localStorage.removeItem("userId"); // Remove User ID
             alert("You have been logged out successfully!");

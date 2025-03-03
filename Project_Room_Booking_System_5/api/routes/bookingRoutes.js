@@ -6,11 +6,12 @@ const {
     cancelBooking,
     updateBooking
 } = require("../controllers/bookingController");
+const authMiddleware = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
 // Get room schedule (available & booked slots)
-router.get("/schedule", getRoomSchedule);
+router.get("/schedule", authMiddleware, getRoomSchedule);
 
 // Book a room (User books a time slot)
 router.post("/book", bookRoom);

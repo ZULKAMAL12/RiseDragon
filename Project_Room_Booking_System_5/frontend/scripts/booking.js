@@ -3,6 +3,18 @@ document.addEventListener("DOMContentLoaded", function () {
     const scheduleTable = document.getElementById("scheduleTable");
     const tableHeaders = document.getElementById("tableHeaders");
     const weekRange = document.getElementById("weekRange");
+    const confirmBookingBtn = document.getElementById("confirmBookingBtn");
+    const prevWeekBtn = document.getElementById("prevWeekBtn");
+    const nextWeekBtn = document.getElementById("nextWeekBtn");
+
+    const token = localStorage.getItem("token");
+    let currentDate = new Date();
+
+    if (!token) {
+        alert("Unauthorized access! Please log in.");
+        window.location.href = "../../index.html";
+        return;
+    }
 
     const timeSlots = [
         "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM",
@@ -10,98 +22,82 @@ document.addEventListener("DOMContentLoaded", function () {
         "04:00 PM", "05:00 PM", "06:00 PM", "07:00 PM"
     ];
 
-    let currentDate = new Date();
-    const MYT_OFFSET = 8 * 60 * 60 * 1000; // GMT+8
+    let selectedSlots = new Set();
 
     function formatDate(date) {
-        return new Intl.DateTimeFormat("en-MY", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+        return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+    }
+
+    async function fetchRooms() {
+        try {
+            const response = await fetch("http://localhost:3000/api/rooms", {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (!response.ok) throw new Error("Failed to fetch rooms");
+
+            const rooms = await response.json();
+            roomSelect.innerHTML = `<option value="">Select a Room</option>`;
+
+            rooms.forEach(room => {
+                const option = document.createElement("option");
+                option.value = room._id;
+                option.textContent = `${room.name} (${room.type})`;
+                roomSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error("Error fetching rooms:", error);
+        }
+    }
+
+    function getWeekRange(date) {
+        const start = new Date(date);
+        start.setDate(start.getDate() - start.getDay());
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
+
+        return { start, end };
     }
 
     async function loadSchedule() {
-        const room = roomSelect.value;
-        const date = formatDate(currentDate);
+        const roomId = roomSelect.value;
+        if (!roomId) return;
 
-        const response = await fetch(`http://localhost:3000/api/booking/schedule?room=${room}&date=${date}`);
-        const data = await response.json();
+        const { start, end } = getWeekRange(currentDate);
+        weekRange.textContent = `${formatDate(start)} - ${formatDate(end)}`;
 
-        const bookings = data.bookings || [];
+        try {
+            const response = await fetch(`http://localhost:3000/api/booking/schedule?room=${roomId}&start=${formatDate(start)}&end=${formatDate(end)}`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
 
-        scheduleTable.innerHTML = "";
-        tableHeaders.innerHTML = "";
+            if (!response.ok) throw new Error("Failed to load schedule");
 
-        // Table headers
-        const timeHeader = document.createElement("th");
-        timeHeader.textContent = "Time";
-        tableHeaders.appendChild(timeHeader);
+            const data = await response.json();
+            scheduleTable.innerHTML = "";
+            tableHeaders.innerHTML = "<th>Time</th>";
 
-        const dateHeader = document.createElement("th");
-        dateHeader.textContent = `${date} (Malaysia Time)`;
-        tableHeaders.appendChild(dateHeader);
-
-        timeSlots.forEach(slot => {
-            const row = document.createElement("tr");
-            const timeCell = document.createElement("td");
-            timeCell.textContent = slot;
-            row.appendChild(timeCell);
-
-            const cell = document.createElement("td");
-            cell.className = "slot available";
-            cell.textContent = "Available";
-            row.appendChild(cell);
-
-            const isBooked = bookings.some(b => b.timeSlot === slot);
-            if (isBooked) {
-                cell.classList.remove("available");
-                cell.classList.add("pending");
-                cell.textContent = "Booked";
-                cell.onclick = null;
-            } else {
-                cell.onclick = () => toggleSlotSelection(cell, slot);
+            for (let i = 0; i < 7; i++) {
+                let day = new Date(start);
+                day.setDate(day.getDate() + i);
+                tableHeaders.innerHTML += `<th>${formatDate(day)}</th>`;
             }
 
-            scheduleTable.appendChild(row);
-        });
-
-        weekRange.textContent = `Booking Schedule for ${date}`;
-    }
-
-    function toggleSlotSelection(cell, timeSlot) {
-        if (cell.classList.contains("pending")) return;
-
-        if (cell.classList.contains("selected")) {
-            cell.classList.remove("selected");
-            cell.classList.add("available");
-            cell.textContent = "Available";
-        } else {
-            cell.classList.remove("available");
-            cell.classList.add("selected");
-            cell.textContent = "Selected";
+            timeSlots.forEach(slot => {
+                let row = `<td>${slot}</td>`;
+                for (let i = 0; i < 7; i++) {
+                    row += `<td class="slot available" onclick="toggleSlotSelection(this)">${data.bookings?.includes(slot) ? "Booked" : "Available"}</td>`;
+                }
+                scheduleTable.innerHTML += `<tr>${row}</tr>`;
+            });
+        } catch (error) {
+            console.error("Error loading schedule:", error);
         }
     }
 
-    async function confirmBooking() {
-        const selectedSlots = Array.from(document.querySelectorAll(".selected")).map(cell => cell.textContent);
-        if (!selectedSlots.length) {
-            alert("No slots selected!");
-            return;
-        }
-
-        const response = await fetch("http://localhost:3000/api/booking/book", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                userId: localStorage.getItem("userId"),
-                room: roomSelect.value,
-                date: formatDate(currentDate),
-                timeSlot: selectedSlots[0],
-            }),
-        });
-
-        const result = await response.json();
-        alert(result.message);
-        loadSchedule();
-    }
+    prevWeekBtn.addEventListener("click", () => { currentDate.setDate(currentDate.getDate() - 7); loadSchedule(); });
+    nextWeekBtn.addEventListener("click", () => { currentDate.setDate(currentDate.getDate() + 7); loadSchedule(); });
 
     roomSelect.addEventListener("change", loadSchedule);
-    loadSchedule();
+    fetchRooms();
 });

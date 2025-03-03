@@ -5,8 +5,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     const token = localStorage.getItem("token");
     const role = localStorage.getItem("role");
 
-    console.log("Stored Role:", role); // Debugging Log
-    console.log("Stored Token:", token ? "Exists" : "Not Found"); // Debugging Log
+    console.log("Stored Role:", role); // Debugging 
+    console.log("Stored Token:", token ? "Exists" : "Not Found"); // Debugging 
 
     if (!token || !role || role.trim().toLowerCase() !== "user") {
         alert("Unauthorized access! Redirecting to login.");
@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (!response.ok) throw new Error("Failed to fetch bookings");
 
             const { upcoming, history } = await response.json();
-            console.log("Fetched Bookings:", { upcoming, history }); // Debugging Log
+            console.log("Fetched Bookings:", { upcoming, history }); 
 
             renderBookings(upcoming, "upcomingBookings", true);
             renderBookings(history, "bookingHistory", false);
@@ -80,12 +80,12 @@ document.addEventListener("DOMContentLoaded", async function () {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ bookingId }) // Removed userId (Backend should verify from token)
+                body: JSON.stringify({ bookingId }) 
             });
 
             const result = await response.json();
             alert(result.message);
-            fetchBookings(); // Refresh bookings after cancellation
+            fetchBookings(); 
         } catch (error) {
             console.error("❌ Error cancelling booking:", error);
             alert("Failed to cancel booking. Please try again.");
@@ -108,20 +108,20 @@ document.addEventListener("DOMContentLoaded", async function () {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ bookingId, newDate, newTime }) // Removed userId (Backend should verify from token)
+                body: JSON.stringify({ bookingId, newDate, newTime })
             });
 
             const result = await response.json();
             alert(result.message);
-            fetchBookings(); // Refresh bookings after update request
+            fetchBookings(); 
         } catch (error) {
-            console.error("❌ Error updating booking:", error);
+            console.error(" Error updating booking:", error);
             alert("Failed to update booking. Please try again.");
         }
     }
 
     function logout() {
-        console.warn("Logging out user..."); // Debugging Log
+        console.warn("Logging out user..."); 
         localStorage.clear();
         window.location.href = "../../index.html";
     }

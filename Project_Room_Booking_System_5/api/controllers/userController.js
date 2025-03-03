@@ -12,7 +12,7 @@ const registerUser = async (req, res) => {
         // Ensure role is assigned correctly
         const role = Boolean(isAdmin) ? "admin" : "user"; 
 
-        // Check if the email already exists in either collection
+        // Check if the email already exists 
         const userExists = await User.findOne({ email }) || await Admin.findOne({ email });
         if (userExists) return res.status(400).json({ message: "User already exists" });
 
@@ -84,7 +84,7 @@ const loginUser = async (req, res) => {
             return res.status(500).json({ message: "Role is missing in the database!" });
         }
 
-        // Generate JWT token including role
+        // Generate JWT token include role
         const token = jwt.sign(
             { id: user._id, role: user.role }, // Ensure role is included
             process.env.JWT_SECRET,
