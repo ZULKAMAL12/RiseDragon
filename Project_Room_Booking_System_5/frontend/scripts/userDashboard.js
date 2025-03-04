@@ -3,12 +3,13 @@ document.addEventListener("DOMContentLoaded", async function () {
     const historyTable = document.getElementById("bookingHistory");
 
     const token = localStorage.getItem("token");
+    const userId = localStorage.getItem("userId");
     const role = localStorage.getItem("role");
 
-    console.log("Stored Role:", role); // Debugging 
-    console.log("Stored Token:", token ? "Exists" : "Not Found"); // Debugging 
+    console.log("Stored Role:", role);
+    console.log("Stored Token:", token ? "Exists" : "Not Found");
 
-    if (!token || !role || role.trim().toLowerCase() !== "user") {
+    if (!token || !userId || role.trim().toLowerCase() !== "user") {
         alert("Unauthorized access! Redirecting to login.");
         logout();
         return;
@@ -16,15 +17,30 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     async function fetchBookings() {
         try {
-            const response = await fetch("http://localhost:3000/api/booking/userBookings", {
+            console.log("Fetching bookings for User ID:", userId);
+
+            const response = await fetch(`http://localhost:3000/api/booking/userBookings?userId=${userId}`, {
                 method: "GET",
-                headers: { "Authorization": `Bearer ${token}` }
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
             });
 
-            if (!response.ok) throw new Error("Failed to fetch bookings");
+            if (!response.ok) {
+                if (response.status === 401) {
+                    alert("Session expired! Please log in again.");
+                    logout();
+                    return;
+                }
+                throw new Error("Failed to fetch bookings");
+            }
 
-            const { upcoming, history } = await response.json();
-            console.log("Fetched Bookings:", { upcoming, history }); 
+            let { upcoming, history } = await response.json();
+            console.log("✅ Fetched Bookings:", { upcoming, history });
+
+            // Fetch room names for each booking
+            upcoming = await fetchRoomNames(upcoming);
+            history = await fetchRoomNames(history);
 
             renderBookings(upcoming, "upcomingBookings", true);
             renderBookings(history, "bookingHistory", false);
@@ -32,6 +48,32 @@ document.addEventListener("DOMContentLoaded", async function () {
             console.error("❌ Error fetching bookings:", error);
             alert("Failed to load bookings. Please try again.");
         }
+    }
+
+    async function fetchRoomNames(bookings) {
+        const roomIds = [...new Set(bookings.map(booking => booking.room))];
+        const roomNames = {};
+
+        try {
+            const response = await fetch("http://localhost:3000/api/rooms", {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (!response.ok) throw new Error("Failed to fetch rooms");
+
+            const rooms = await response.json();
+            rooms.forEach(room => {
+                roomNames[room._id] = room.name; // Map room ID to name
+            });
+
+        } catch (error) {
+            console.error("❌ Error fetching room names:", error);
+        }
+
+        return bookings.map(booking => ({
+            ...booking,
+            roomName: roomNames[booking.room] || "Unknown"
+        }));
     }
 
     function renderBookings(bookings, tableId, isUpcoming) {
@@ -47,7 +89,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             const row = document.createElement("tr");
             row.innerHTML = `
                 <td>${index + 1}</td>
-                <td>${booking.room}</td>
+                <td>${booking.roomName || "Unknown"}</td>
                 <td>${booking.date}</td>
                 <td>${booking.timeSlot}</td>
                 <td><span class="badge bg-${getStatusColor(booking.status)}">${booking.status}</span></td>
@@ -75,17 +117,19 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         try {
             const response = await fetch(`http://localhost:3000/api/booking/cancel`, {
-                method: "DELETE",
+                method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ bookingId }) 
+                body: JSON.stringify({ bookingId })
             });
+
+            if (!response.ok) throw new Error("Failed to cancel booking");
 
             const result = await response.json();
             alert(result.message);
-            fetchBookings(); 
+            fetchBookings();
         } catch (error) {
             console.error("❌ Error cancelling booking:", error);
             alert("Failed to cancel booking. Please try again.");
@@ -111,17 +155,19 @@ document.addEventListener("DOMContentLoaded", async function () {
                 body: JSON.stringify({ bookingId, newDate, newTime })
             });
 
+            if (!response.ok) throw new Error("Failed to update booking");
+
             const result = await response.json();
             alert(result.message);
-            fetchBookings(); 
+            fetchBookings();
         } catch (error) {
-            console.error(" Error updating booking:", error);
+            console.error("❌ Error updating booking:", error);
             alert("Failed to update booking. Please try again.");
         }
     }
 
     function logout() {
-        console.warn("Logging out user..."); 
+        console.warn("Logging out user...");
         localStorage.clear();
         window.location.href = "../../index.html";
     }

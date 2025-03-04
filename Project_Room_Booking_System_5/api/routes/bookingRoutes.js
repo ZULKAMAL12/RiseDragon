@@ -17,7 +17,7 @@ router.get("/schedule", authMiddleware, getRoomSchedule);
 router.post("/book", bookRoom);
 
 // Get user's upcoming and past bookings
-router.get("/userBookings", getUserBookings);
+router.get("/userBookings", authMiddleware,getUserBookings);
 
 // Cancel a booking (removes slot availability & notifies admin)
 router.post("/cancel", cancelBooking);
